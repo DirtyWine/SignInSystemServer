@@ -1,4 +1,4 @@
-create database signinsystem  ;
+create database signinsystem DEFAULT CHARSET utf8 COLLATE utf8_general_ci ;
 /*==============================================================*/
 /* DBMS name:      MySQL 5.0                                    */
 /* Created on:     2018/5/31 17:33:01                           */
