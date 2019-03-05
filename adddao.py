@@ -112,7 +112,7 @@ def addRoom(room_id,wx_id,room_info,room_cap):
     return True
 
 #添加子房间
-def addSubRoom(subroom_id,room_id,subroom_time,subroom_stat):
+def addSubRoom(subroom_id,room_id,subroom_time,subroom_location,subroom_stat):
     db = MySQLdb.connect(
         host="localhost",
         user="root",  # 数据库的用户名
@@ -125,9 +125,9 @@ def addSubRoom(subroom_id,room_id,subroom_time,subroom_stat):
     cursor = db.cursor()
 
     # SQL 插入语句
-    sql = "INSERT INTO subroom(subroom_id, room_id, subroom_time, subroom_stat) \
-           VALUES('%s','%s','%s','%d') "%\
-          (subroom_id,room_id,subroom_time,subroom_stat)
+    sql = "INSERT INTO subroom(subroom_id, room_id, subroom_time, subroom_location, subroom_stat) \
+           VALUES('%s','%s','%s','%s','%d') "%\
+          (subroom_id,room_id,subroom_time,subroom_location,subroom_stat)
     print(sql)
     try:
         # 执行sql语句

@@ -184,11 +184,14 @@ def selectSubRoomByRoomId(room_id):
         if (0 != len(results)):
             subrooms = []
             for row in results:
+                location = row[3]
+                locations = location.split()
                 subroom = {
                     'subroomId': row[0],
                     'subroomTime': row[1].strftime('%Y-%m-%d %H:%M:%S'),
                     'subroomStat': row[2],
-                    'subroomLocation': row[3]
+                    'latitude': locations[0],
+                    'longitude': locations[1]
                 }
                 subrooms.append(subroom)
             print "selectSubRoomByRoomId() succeed"
@@ -200,7 +203,7 @@ def selectSubRoomByRoomId(room_id):
 
 
 #通过子房间号查询子房间信息
-def selectSubRoomById(subroom_id):
+def selectSubRoomStatById(subroom_id):
     db = MySQLdb.connect(
         host="localhost",
         user="root",  # 数据库的用户名
@@ -213,7 +216,7 @@ def selectSubRoomById(subroom_id):
     cursor = db.cursor()
 
     # SQL 查询语句
-    sql = "SELECT room_id,subroom_time,subroom_stat,subroom_location FROM subroom WHERE subroom_id='%s'"%(subroom_id)
+    sql = "SELECT subroom_stat FROM subroom WHERE subroom_id='%s'"%(subroom_id)
     try:
         # 执行SQL语句
         cursor.execute(sql)
@@ -221,11 +224,15 @@ def selectSubRoomById(subroom_id):
         results = cursor.fetchall()
         # 关闭数据库连接
         db.close()
-        print "通过房间号查询子房间信息成功"
-        return results;
+        print "selectSubRoomStatById() succeed"
+        if (0 != len(results)):
+            for row in results:
+                return row[0]
     except:
-        print "通过房间号查询子房间信息失败"
-        return None
+        print "selectSubRoomStatById() failed"
+        db.close()
+
+    return False
 
 
 #通过子房间号查询点到记录

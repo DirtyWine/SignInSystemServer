@@ -11,6 +11,7 @@ import updatedao
 import urllib
 import json
 import os
+import shutil
 import datetime
 
 import face_recognition 
@@ -61,13 +62,29 @@ def userSignin():
     f = request.files['face']
     subroomId = request.form['subroomId']
     userId = request.form['userId']
-    f.save('Unknown/'+userId+'.png')
-    checked_face = face_recognition.load_image_file('Known/'+userId+'.png')
+    if ( not selectdao.selectSubRoomStatById(subroomId) ):
+        response = {
+            'success': False,
+            'msg': 'closed'
+        }
+        return json.dumps(response)
+    path = "temp/"+userId+".jpg"
+    f.save(path)
+    checked_face = face_recognition.load_image_file("Known/"+userId+".jpg")
     checked_face_encoding = face_recognition.face_encodings(checked_face)[0]
-    user_face_encoding = face_recognition.face_encodings(f)[0]
+    user = face_recognition.load_image_file("temp/"+userId+".jpg")
+    user_face_encodings = face_recognition.face_encodings(user)
+    if (0 == len(user_face_encodings)):
+        response = {
+            'success': False,
+            'msg': 'No face detected'
+        }
+        os.remove(path)
+        return json.dumps(response)
+    user_face_encoding = user_face_encodings[0]
     known_encodings = [checked_face_encoding]
-    face_distance = face_recognition.face_distance(known_encodings,user_face_encoding)
-    if （face_distance < 0.6）:
+    results = face_recognition.compare_faces(known_encodings,user_face_encoding,0.4)
+    if (results[0] == True):
         time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         if (adddao.addSignin(userId, subroomId, time)):
             response = {
@@ -76,13 +93,15 @@ def userSignin():
         else:
             response = {
                 'success': False,
-                'msg': '发生异常'
+                'msg': 'error'
             }
     else: 
         response= {
             'success': False,
-            'msg': '人脸识别不匹配，点到失败'
+            'msg': 'face not matched'
         }
+    if os.path.exists(path):
+        os.remove(path)
     return json.dumps(response)
 
 
@@ -92,20 +111,34 @@ def userRegister():
     f = request.files['faceImg']
     userName = request.form['userName']
     userId = request.form['userId']
-    f.save('Known/'+userId+'.png')
-    if (adddao.addUser(userId, userName)):
-        response = {
-            'userName': userName,
-            'success': True,
-            'mode': 'register'
-        }
-        return json.dumps(response)
-    else:
+    path = 'temp/'+userId+'.jpg'
+    dst = 'Known/'+userId+'.jpg'
+    f.save(path)
+    face = face_recognition.load_image_file(path)
+    face_encodings = face_recognition.face_encodings(face)
+    if (0 == len(face_encodings)):
         response = {
             'success': False,
+            'msg': 'No Face Detected,Choose another photo',
             'mode': 'register'
         }
-        return json.dumps(response)
+    else: 
+        if (adddao.addUser(userId, userName)):
+            response = {
+                'userName': userName,
+                'success': True,
+                'mode': 'register'
+            }
+            shutil.copy(path,dst)
+        else:
+            response = {
+                'success': False,
+                'msg': 'error',
+                'mode': 'register'
+            } 
+    if os.path.exists(path):
+         os.remove(path)
+    return json.dumps(response)
 
 
 @app.route('/user/edit',methods=['GET','POST'])
@@ -114,26 +147,39 @@ def userEdit():
     f = request.files['faceImg']
     userName = request.form['userName']
     userId = request.form['userId']
-    f.save('Known/'+userId+'.png')
-    if (updatedao.updateUser(userId, userName)):
-        response = {
-            'userName': userName,
-            'success': True,
-            'mode': 'edit'
-        }
-        return json.dumps(response)
-    else:
+    path = 'temp/'+userId+'.jpg'
+    dst = 'Known/'+userId+'.jpg'
+    f.save(path)
+    face = face_recognition.load_image_file(path)
+    face_encodings = face_recognition.face_encodings(face)
+    if (0 == len(face_encodings)):
         response = {
             'success': False,
+            'msg': 'No Face Detected,Choose another photo',
             'mode': 'edit'
         }
-        return json.dumps(response)
+    else:
+        if (updatedao.updateUser(userId, userName)):
+            response = {
+                'userName': userName,
+                'success': True,
+                'mode': 'edit'
+            }
+            shutil.copy(path,dst)
+        else:
+            response = {
+                'success': False,
+                'mode': 'edit',
+                'msg': 'error'
+            } 
+    os.remove(path)  
+    return json.dumps(response)
 
 
 @app.route('/img/download/<filename>',methods=['GET'])
 def imgDownload(filename):
-    image = file("Known/{}.png".format(filename))
-    resp = Response(image, mimetype='image/png')
+    image = file("Known/{}.jpg".format(filename))
+    resp = Response(image, mimetype='image/jpg')
     return resp
 
 
@@ -203,16 +249,19 @@ def getRoomDetail():
 def subroomCreate():
     print "subroomCreate()"
     roomId = request.json['roomId']
+    location = request.json['location']
+    locations = location.split()
     count = selectdao. getSubRoomCount(roomId)
     subroomId = roomId.encode('utf-8') +"#"+str(count)
     subroomTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    if ( adddao.addSubRoom(subroomId, roomId, subroomTime, True) ):
+    if ( adddao.addSubRoom(subroomId, roomId, subroomTime, location, True) ):
         subroom = {
             'subroomId': subroomId,
             'subroomTime': subroomTime,
             'subroomStat': 1,
             'total': 0,
-            'subroomLocation': ''
+            'latitude': locations[0],
+            'longitude': locations[1]
         }
         response = {
             'success': True,
@@ -326,5 +375,4 @@ def getRoomStuInfo():
 
 
 if __name__ == '__main__':
-    app.debug = True
-    app.run()
+    app.run( host= '0.0.0.0' )
